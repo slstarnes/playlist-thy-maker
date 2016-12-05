@@ -1,0 +1,10 @@
+# run: conda env create -n <YOUR ENV NAME> --file environment.yml
+# name: test-env
+dependencies:
+- python=2.7
+- pip
+- yaml
+- pandas
+- pip:
+  - spotipy
+  - PyYAML
