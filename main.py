@@ -233,19 +233,7 @@ class PlaylistMaker:
 
 if __name__ == "__main__":
     pm = PlaylistMaker()
-
-    if True:
-        tracks = pm.create_track_list_of_related_artists('artists.txt')
-        pm.create_playlist_of_tracks(tracks, 'Rainy Sunday')
-        tracks = pm.add_audio_features(tracks)
-        tracks.to_csv('tracks.csv')
-
-    if False:
-        pid = pm.find_playlist('Special Earth Songs from Tennessee')
-        print (pm.spotify.user_playlist_tracks(pm.username,playlist_id=pid,fields='items(track(name,id,artists(name)))'))
-        ## Next: give me a playlist name and I give you back a dataframe with tracks with audio features
-
-        ##idea
-        # get all tracks by artist... get artist albums, get each albums tracks
-        # filter down by some audio feature. thinking...tom waits and acoustic.
-
+    tracks = pm.create_track_list_of_related_artists('artists.txt')
+    pm.create_playlist_of_tracks(tracks, 'Rainy Sunday')
+    tracks = pm.add_audio_features(tracks)
+    tracks.to_csv('tracks.csv')
