@@ -253,16 +253,28 @@ class PlaylistMaker:
                                                       playlist_id=pid)
         track_list = [self.track_extractor_plus(t['track']) for t in tracks_json['items']]
         track_df = pd.DataFrame(track_list)
-        return self.add_audio_features(track_df)
+        return track_df
+
+    def get_artist_tracks(self, artist_name):
+        # get artist albums, then get each albums tracks for each album
+        # those tracks get returned as df
+        track_df = pd.DataFrame()
+        return track_df
 
 if __name__ == "__main__":
     pm = PlaylistMaker()
     if False:
         tracks = pm.create_track_list_of_related_artists('artists.txt')
         pm.create_playlist_of_tracks(tracks, 'Rainy Sunday')
-        tracks = pm.add_audio_features(tracks)
+
         tracks.to_csv('tracks.csv')
 
-    if True:
+    if False:
         tracks = pm.track_details_from_playlist('Special Earth Songs from Tennessee')
+        tracks = pm.add_audio_features(tracks)
         tracks.to_csv('Special Earth Songs from Tennessee.csv')
+
+    if True:
+        tracks = pm.get_artist_tracks('Tom Waits')
+        tracks = pm.add_audio_features(tracks)
+        tracks.to_csv('Tom Waits.csv')
