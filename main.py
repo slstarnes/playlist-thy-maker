@@ -64,6 +64,12 @@ class PlaylistMaker:
                 'Track ID': o['id'],
                 'Track Popularity': o['popularity']}
 
+    def track_extractor_plus(self, o):
+        return {'Artist': o['artists'][0]['name'],
+                'Track Name': o['name'],
+                'Track ID': o['id'],
+                'Track Popularity': o['popularity']}
+
     def audio_feature_extractor(self, o):
         return {'Energy': o['energy'],
                 'Liveness': o['liveness'],
@@ -77,6 +83,11 @@ class PlaylistMaker:
                 'Duration': float(o['duration_ms']) / (1000 * 60),
                 'Loudness': o['loudness'],
                 'Valence': o['valence']}
+
+    def track_from_pl_extractor(self, o):
+        return {'Track Name': o['name'],
+                'Track ID': o['id'],
+                'Artist': o['artists']['name']}
 
     def audio_features(self, track_list, chunk_size=50):
         """
@@ -122,8 +133,8 @@ class PlaylistMaker:
                     Tracks with high valence sound more positive (e.g. happy, cheerful, euphoric), while tracks with low
                     valence sound more negative (e.g. sad, depressed, angry).
 
-        :param track_list:
-        :param chunk_size:
+        :param track_list: dataframe of tracks
+        :param chunk_size: number of tracks to add per request (max=100)
         :return:
         """
         chunk_size = min(chunk_size, 100)
@@ -221,19 +232,37 @@ class PlaylistMaker:
         if include_seed_artists:
             artists += related_artists
         track_list = pm.find_top_tracks(artists, num_top_tracks_per_artist)
-        track_list = pd.DataFrame(track_list)
-        track_list.drop_duplicates(subset='Track ID', inplace=True)
-        return track_list
+        track_df = pd.DataFrame(track_list)
+        track_df.drop_duplicates(subset='Track ID', inplace=True)
+        return track_df
 
-    def create_playlist_of_tracks(self, track_list, playlist_name):
-        track_ids = list(track_list['Track ID'])
+    def create_playlist_of_tracks(self, track_df, playlist_name):
+        """
+
+        :param track_df: Dataframe of tracks for playlist
+        :param playlist_name: Name of playlist
+        :return: None
+        """
+        track_ids = list(track_df['Track ID'])
         self.create_playlist(playlist_name)
         self.user_playlist_add_tracks(self.find_playlist(playlist_name), track_ids)
 
+    def track_details_from_playlist(self, playlist_name):
+        pid = pm.find_playlist(playlist_name)
+        tracks_json = pm.spotify.user_playlist_tracks(self.username,
+                                                      playlist_id=pid)
+        track_list = [self.track_extractor_plus(t['track']) for t in tracks_json['items']]
+        track_df = pd.DataFrame(track_list)
+        return self.add_audio_features(track_df)
 
 if __name__ == "__main__":
     pm = PlaylistMaker()
-    tracks = pm.create_track_list_of_related_artists('artists.txt')
-    pm.create_playlist_of_tracks(tracks, 'Rainy Sunday')
-    tracks = pm.add_audio_features(tracks)
-    tracks.to_csv('tracks.csv')
+    if False:
+        tracks = pm.create_track_list_of_related_artists('artists.txt')
+        pm.create_playlist_of_tracks(tracks, 'Rainy Sunday')
+        tracks = pm.add_audio_features(tracks)
+        tracks.to_csv('tracks.csv')
+
+    if True:
+        tracks = pm.track_details_from_playlist('Special Earth Songs from Tennessee')
+        tracks.to_csv('Special Earth Songs from Tennessee.csv')
