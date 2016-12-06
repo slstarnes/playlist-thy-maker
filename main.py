@@ -60,6 +60,7 @@ class PlaylistMaker:
                 'Artist Followers': o['followers']['total']}
 
     def track_extractor(self, o):
+        print (o)
         return {'Track Name': o['name'],
                 'Track ID': o['id'],
                 'Track Popularity': o['popularity']}
@@ -256,9 +257,19 @@ class PlaylistMaker:
         return track_df
 
     def get_artist_tracks(self, artist_name):
-        # get artist albums, then get each albums tracks for each album
-        # those tracks get returned as df
-        track_df = pd.DataFrame()
+        result = self.spotify.search(artist_name, limit=1, type='artist')
+        artist_id = result['artists']['items'][0]['id']
+        result = self.spotify.artist_albums(artist_id, album_type='album')
+        artist_albums = []
+        for items in result['items']:
+            artist_albums.append({'Album Name': items['name'], 'Album ID': items['id']})
+        track_list = []
+        for album in artist_albums:
+            result = self.spotify.album_tracks(album['Album ID'])
+            print (result['items'])
+            album_tracks = [{'Track Name': t['name'], 'Track ID': t['id']} for t in result['items']]
+            track_list += album_tracks
+        track_df = pd.DataFrame(track_list)
         return track_df
 
 if __name__ == "__main__":
