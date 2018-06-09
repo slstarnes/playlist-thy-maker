@@ -7,8 +7,6 @@ import sys
 
 class PlaylistMaker:
     def __init__(self):
-#         reload(sys)
-#         sys.setdefaultencoding('utf-8')
         with open('credentials.yaml') as f:
             credentials = yaml.load(f)
         self.username = credentials['spotify_username']
@@ -150,28 +148,37 @@ class PlaylistMaker:
 
     def artist_details(self, artist_list):
         """Gets artist IDs from a list of entries (tracks or artist). Returns list."""
+        if isinstance(artist_list, str):
+            artist_list = [artist_list]
+        assert isinstance(artist_list, list)
         artist_ids = []
         for artist in artist_list:
             result = self.spotify.search(artist, type='artist', limit=1)
-            artist_ids.append(self.artist_extractor(result['artists']['items'][0]))
-        return artist_ids
+            if result['artists']['items']:
+                artist_ids.append(self.artist_extractor(result['artists']['items'][0]))
+            else:
+                print(f'{artist} is not a valid artist')
+        artist_df = pd.DataFrame(artist_ids)
+        return artist_df
 
     def find_related_artists(self, artist_list, num_artists=1, shuffle_artists=True):
         """For each artist in list, finds random related artist ids (num_artists). Returns list."""
         related_artist_ids = []
-        for artist_id in artist_list:
-            related = self.spotify.artist_related_artists(artist_id['Artist ID'])
+        for artist_id in artist_list['Artist ID']:
+            related = self.spotify.artist_related_artists(artist_id)#['Artist ID'])
             random_related_artists = [self.artist_extractor(r) for r in related['artists']]
             if shuffle_artists:
                 random.shuffle(random_related_artists)
             random_related_artists = random_related_artists[:min(len(random_related_artists), num_artists)]
             related_artist_ids += random_related_artists
-        return related_artist_ids
+        related_artist_ids_df = pd.DataFrame(related_artist_ids)
+        #related_artist_ids_df = related_artist_ids_df.set_index('Artist Name', drop=True)
+        return related_artist_ids_df
 
     def find_top_tracks(self, artist_list, num_tracks=5):
         """Find top n tracks of the artists in the argument"""
         track_ids = []
-        for artist in artist_list:
+        for row, artist in artist_list.iterrows():
             track_list = self.spotify.artist_top_tracks(artist['Artist ID'])
             track_list = [self.track_extractor(t) for t in track_list['tracks']]
             track_list = self.expand_dicts_in_list(track_list, artist)
@@ -203,7 +210,7 @@ class PlaylistMaker:
         :return: None
         """
         chunk_size = min(chunk_size, 100)
-        chunks = [track_list[x:x + chunk_size] for x in xrange(0, len(track_list), chunk_size)]
+        chunks = [track_list[x:x + chunk_size] for x in range(0, len(track_list), chunk_size)]
         for chunk in chunks:
             self.spotify.user_playlist_add_tracks(self.username, playlist, chunk)
 
@@ -212,46 +219,60 @@ class PlaylistMaker:
         :param track_list: dataframe of tracks
         :return: dataframe with features added
         """
-        tracks_with_features = pm.audio_features(track_list)
+        tracks_with_features = self.audio_features(track_list)
         return pd.concat([pd.DataFrame(track_list),
                           pd.DataFrame(tracks_with_features)],
                          axis=1)
 
-    def create_track_list_of_related_artists(self, artist_file,
+    def create_track_list_of_related_artists(self, artists_,
                                              include_seed_artists=True,
                                              num_top_tracks_per_artist=5,
                                              num_related_artists=8):
         """
-        :param artist_file: text file of artists
-        :param include_seed_artists : whether output should include seed artists (default=True)
+        Given a list of artists, return a list of top tracks for related artists (and optionally the original artists)
+
+        :param artists_: list of artists or text file of artists
+        :type artist_file: list or string
+        :param include_seed_artists: whether output should include seed artists (default=True)
+        :type include_seed_artists: bool
         :param num_top_tracks_per_artist: Number of tracks per artist (default=5)
+        :type num_top_tracks_per_artist: int
         :param num_related_artists: Number of related artists per seed artist (default=8)
+        :type num_related_artists: int
         :return: dataframe of tracks
         """
-        artists = pm.get_artist_names_from(artist_file)
-        artists = pm.artist_details(artists)
-        related_artists = pm.find_related_artists(artists, num_related_artists)
+        if isinstance(artists_, str):
+            artists_ = self.get_artist_names_from(artists_)
+        artists = self.artist_details(artists_)
+        related_artists = self.find_related_artists(artists, num_related_artists)
         if include_seed_artists:
-            artists += related_artists
-        track_list = pm.find_top_tracks(artists, num_top_tracks_per_artist)
+            artists.append(related_artists)
+        track_list = self.find_top_tracks(artists, num_top_tracks_per_artist)
         track_df = pd.DataFrame(track_list)
         track_df.drop_duplicates(subset='Track ID', inplace=True)
         return track_df
 
-    def create_playlist_of_tracks(self, track_df, playlist_name):
+    def create_playlist_of_tracks(self, track_iterable, playlist_name):
         """
+        Create playlist given a DataFrame of tracks.
 
-        :param track_df: Dataframe of tracks for playlist
+        :param track_df: tracks for playlist
+        :type track_df: pd.DataFrame
         :param playlist_name: Name of playlist
+        :type playlist_name: str
         :return: None
         """
-        track_ids = list(track_df['Track ID'])
+        if isinstance(track_iterable, pd.DataFrame):
+            track_ids = list(track_iterable['Track ID'])
+        elif isinstance(track_iterable, list):
+            track_ids = track_iterable
+        # TODO: add handling for other cases. also, fix comment
         self.create_playlist(playlist_name)
         self.user_playlist_add_tracks(self.find_playlist(playlist_name), track_ids)
 
     def track_details_from_playlist(self, playlist_name):
-        pid = pm.find_playlist(playlist_name)
-        tracks_json = pm.spotify.user_playlist_tracks(self.username,
+        pid = self.find_playlist(playlist_name)
+        tracks_json = self.spotify.user_playlist_tracks(self.username,
                                                       playlist_id=pid)
         track_list = [self.track_extractor_plus(t['track']) for t in tracks_json['items']]
         track_df = pd.DataFrame(track_list)
@@ -267,18 +288,46 @@ class PlaylistMaker:
         track_list = []
         for album in artist_albums:
             result = self.spotify.album_tracks(album['Album ID'])
-            print (result['items'])
             album_tracks = [{'Track Name': t['name'], 'Track ID': t['id']} for t in result['items']]
             track_list += album_tracks
         track_df = pd.DataFrame(track_list)
         return track_df
 
+    def playlist_from_file_of_tracks(self, input_file, playlist_name):
+        with open(input_file) as f:
+            ids = []
+            for id_ in f:
+                # id_ = id_.encode("utf-8")
+                id_ = id_.replace('\n', '')
+                ids.append(id_)
+        self.create_playlist_of_tracks(ids, playlist_name)
+
+    def get_recommendations(self, artists_list):
+        pass
+        #https://developer.spotify.com/documentation/web-api/reference/browse/get-recommendations/
+        # self.artist_details(artists_list)
+
 if __name__ == "__main__":
     pm = PlaylistMaker()
+    assert isinstance(pm.get_artist_names_from('artists.txt'), list)
+    assert pm.artist_name_from_id('43O3c6wewpzPKwVaGEEtBM') == 'My Morning Jacket'
+    l = [{'rex':'p','ew':'mnk','cfr':'wsf'},
+         {'rex':'p2','ew':'mnk2','cfr':'wsf2'}]
+    d = {'stp':'added'}
+    l_d = [{'rex':'p','ew':'mnk','cfr':'wsf', 'stp':'added'},
+         {'rex':'p2','ew':'mnk2','cfr':'wsf2', 'stp':'added'}]
+    assert pm.expand_dicts_in_list(l, d) == l_d
+    related = pm.spotify.artist_related_artists('43O3c6wewpzPKwVaGEEtBM')
+    assert isinstance(related['artists'], list)
+    assert isinstance(related['artists'][0], dict)
+    assert isinstance(pm.artist_extractor(related['artists'][0]), dict)
+    track_list = pm.spotify.artist_top_tracks('43O3c6wewpzPKwVaGEEtBM')
+    assert isinstance(pm.track_extractor(track_list['tracks'][0]), dict)
+    assert isinstance(pm.track_extractor_plus(track_list['tracks'][0]), dict)
+
     if False:
         tracks = pm.create_track_list_of_related_artists('artists.txt')
         pm.create_playlist_of_tracks(tracks, 'Rainy Sunday')
-
         tracks.to_csv('tracks.csv')
 
     if False:
@@ -291,7 +340,7 @@ if __name__ == "__main__":
         tracks = pm.add_audio_features(tracks)
         tracks.to_csv('Tom Waits.csv')
 
-    if True:
+    if False:
         pm.playlist_from_file_of_tracks('tracks.txt', 'chill n waits')
 
 
