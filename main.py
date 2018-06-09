@@ -7,8 +7,8 @@ import sys
 
 class PlaylistMaker:
     def __init__(self):
-        reload(sys)
-        sys.setdefaultencoding('utf-8')
+#         reload(sys)
+#         sys.setdefaultencoding('utf-8')
         with open('credentials.yaml') as f:
             credentials = yaml.load(f)
         self.username = credentials['spotify_username']
@@ -25,7 +25,7 @@ class PlaylistMaker:
             # Initialize Spotify object
             self.spotify = spotipy.Spotify(auth=self.token)
         else:
-            print("Can't get token for", pm.username)
+            print("Can't get token for", self.username)
 
     def create_playlist(self, name):
         """Creates playlist with the name given as the argument."""
@@ -57,10 +57,11 @@ class PlaylistMaker:
         return {'Artist Name': o['name'],
                 'Artist ID': o['id'],
                 'Artist Popularity': o['popularity'],
-                'Artist Followers': o['followers']['total']}
+                'Artist Followers': o['followers']['total'],
+                'Artist Genres': o['genres'],
+                'Artist Image': o['images'][0]['url']}
 
     def track_extractor(self, o):
-        print (o)
         return {'Track Name': o['name'],
                 'Track ID': o['id'],
                 'Track Popularity': o['popularity']}
@@ -139,7 +140,7 @@ class PlaylistMaker:
         :return:
         """
         chunk_size = min(chunk_size, 100)
-        chunks = [track_list[x:x + chunk_size] for x in xrange(0, len(track_list), chunk_size)]
+        chunks = [track_list[x:x + chunk_size] for x in range(0, len(track_list), chunk_size)]
         features = []
         for chunk in chunks:
             result = self.spotify.audio_features(list(chunk['Track ID']))
@@ -285,7 +286,13 @@ if __name__ == "__main__":
         tracks = pm.add_audio_features(tracks)
         tracks.to_csv('Special Earth Songs from Tennessee.csv')
 
-    if True:
+    if False:
         tracks = pm.get_artist_tracks('Tom Waits')
         tracks = pm.add_audio_features(tracks)
         tracks.to_csv('Tom Waits.csv')
+
+    if True:
+        pm.playlist_from_file_of_tracks('tracks.txt', 'chill n waits')
+
+
+# TODO -- add clustering to find how songs cluster -- http://scikit-learn.org/stable/modules/clustering.html
