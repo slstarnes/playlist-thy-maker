@@ -179,7 +179,6 @@ class PlaylistMaker:
             random_related_artists = random_related_artists[:min(len(random_related_artists), num_artists)]
             related_artist_ids += random_related_artists
         related_artist_ids_df = pd.DataFrame(related_artist_ids)
-        #related_artist_ids_df = related_artist_ids_df.set_index('Artist Name', drop=True)
         return related_artist_ids_df
 
     def find_top_tracks(self, artist_list, num_tracks=5):
@@ -311,14 +310,13 @@ class PlaylistMaker:
         with open(input_file) as f:
             ids = []
             for id_ in f:
-                # id_ = id_.encode("utf-8")
                 id_ = id_.replace('\n', '')
                 ids.append(id_)
         self.create_playlist_of_tracks(ids, playlist_name)
 
     def get_recommendations(self, *args,**kwargs):
         if 'seed_artists' in kwargs:
-            # TODO: check and see if this is an ID or a name
+            # TODO: check and see if this is an ID or a name (current code assumes name)
             seed_artists = kwargs['seed_artists']
             seed_artist_ids = []
             for s_a in seed_artists:
@@ -326,14 +324,13 @@ class PlaylistMaker:
                 seed_artist_ids.append(result['artists']['items'][0]['id'])
             kwargs['seed_artists'] = seed_artist_ids
         tracks = self.spotify.recommendations(*args,**kwargs)
-        # print(tracks['tracks'][0])
         tracks = [self.track_details(trk['id']) for trk in tracks['tracks']]
-        # tracks = [self.track_extractor_plus(t['Track ID']) for t in tracks]
         return pd.DataFrame(tracks)
 
 
 if __name__ == "__main__":
     pm = PlaylistMaker()
+
     assert isinstance(pm.get_artist_names_from('artists.txt'), list)
     assert pm.artist_name_from_id('43O3c6wewpzPKwVaGEEtBM') == 'My Morning Jacket'
     l = [{'rex':'p','ew':'mnk','cfr':'wsf'},
@@ -351,24 +348,3 @@ if __name__ == "__main__":
     assert isinstance(pm.track_extractor_plus(track_list['tracks'][0]), dict)
     assert isinstance(pm.track_details('7hxZF4jETnE5Q75rKQnMjE'), dict)
 
-
-    if False:
-        tracks = pm.create_track_list_of_related_artists('artists.txt')
-        pm.create_playlist_of_tracks(tracks, 'Rainy Sunday')
-        tracks.to_csv('tracks.csv')
-
-    if False:
-        tracks = pm.track_details_from_playlist('Special Earth Songs from Tennessee')
-        tracks = pm.add_audio_features(tracks)
-        tracks.to_csv('Special Earth Songs from Tennessee.csv')
-
-    if False:
-        tracks = pm.get_artist_tracks('Tom Waits')
-        tracks = pm.add_audio_features(tracks)
-        tracks.to_csv('Tom Waits.csv')
-
-    if False:
-        pm.playlist_from_file_of_tracks('tracks.txt', 'chill n waits')
-
-
-# TODO -- add clustering to find how songs cluster -- http://scikit-learn.org/stable/modules/clustering.html
