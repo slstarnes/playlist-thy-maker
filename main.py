@@ -246,8 +246,8 @@ class PlaylistMaker:
         artists = self.artist_details(artists_)
         related_artists = self.find_related_artists(artists, num_related_artists)
         if include_seed_artists:
-            artists.append(related_artists)
-        track_list = self.find_top_tracks(artists, num_top_tracks_per_artist)
+            related_artists.append(artists)
+        track_list = self.find_top_tracks(related_artists, num_top_tracks_per_artist)
         track_df = pd.DataFrame(track_list)
         track_df.drop_duplicates(subset='Track ID', inplace=True)
         return track_df
