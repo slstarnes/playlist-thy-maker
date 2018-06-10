@@ -89,6 +89,12 @@ class PlaylistMaker:
                 'Track ID': o['id'],
                 'Artist': o['artists']['name']}
 
+    def track_details(self, track_id):
+        urn = f"spotify:track:{track_id}"
+        track_json = self.spotify.track(urn)
+        track_details = self.track_extractor_plus(track_json)
+        return track_details#pd.DataFrame(track_details)
+
     def audio_features(self, track_list, chunk_size=50):
         """
 
