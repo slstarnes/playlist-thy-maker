@@ -3,7 +3,8 @@ import spotipy.util as util
 import random
 import yaml
 import pandas as pd
-import sys
+from toolz import dicttoolz
+
 
 class PlaylistMaker:
     def __init__(self):
@@ -290,12 +291,19 @@ class PlaylistMaker:
         result = self.spotify.artist_albums(artist_id, album_type='album')
         artist_albums = []
         for items in result['items']:
-            artist_albums.append({'Album Name': items['name'], 'Album ID': items['id']})
+            artist_albums.append({'Album Name': items['name'],
+                                 'Album ID': items['id'],
+                                 'Release Date': items['release_date']})
         track_list = []
         for album in artist_albums:
             result = self.spotify.album_tracks(album['Album ID'])
-            album_tracks = [{'Track Name': t['name'], 'Track ID': t['id']} for t in result['items']]
+            track_ids = [t['id'] for t in result['items']]
+
+            album_tracks = [self.track_details(id_) for id_ in track_ids]
+            album_tracks = [dicttoolz.merge((album, trk)) for trk in album_tracks]
+
             track_list += album_tracks
+
         track_df = pd.DataFrame(track_list)
         return track_df
 
@@ -330,6 +338,8 @@ if __name__ == "__main__":
     track_list = pm.spotify.artist_top_tracks('43O3c6wewpzPKwVaGEEtBM')
     assert isinstance(pm.track_extractor(track_list['tracks'][0]), dict)
     assert isinstance(pm.track_extractor_plus(track_list['tracks'][0]), dict)
+    assert isinstance(pm.track_details('7hxZF4jETnE5Q75rKQnMjE'), dict)
+
 
     if False:
         tracks = pm.create_track_list_of_related_artists('artists.txt')
