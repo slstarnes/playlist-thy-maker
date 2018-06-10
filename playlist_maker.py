@@ -328,7 +328,18 @@ class PlaylistMaker:
                 seed_artist_ids.append(result['artists']['items'][0]['id'])
             kwargs['seed_artists'] = seed_artist_ids
         tracks = self.spotify.recommendations(*args,**kwargs)
+
+        print(tracks['tracks'][0]['album']['images'][0]['url'])
+
+        ## TODO: cleanup
+        album_urls = []
+        for trk in tracks['tracks']:
+            # j = self.spotify.artist(trk['artists'][0]['id'])
+            album_urls.append(trk['album']['images'][0]['url'])
         tracks = [self.track_details(trk['id']) for trk in tracks['tracks']]
+
+        tracks = [dicttoolz.merge({'Album URL': u}, t) for u, t in zip(album_urls, tracks)]
+
         return pd.DataFrame(tracks)
 
 
