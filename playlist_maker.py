@@ -4,6 +4,7 @@ import random
 import yaml
 import pandas as pd
 from toolz import dicttoolz
+import time
 
 
 class PlaylistMaker:
@@ -148,6 +149,7 @@ class PlaylistMaker:
         chunks = [track_list[x:x + chunk_size] for x in range(0, len(track_list), chunk_size)]
         features = []
         for chunk in chunks:
+            time.sleep(2)
             result = self.spotify.audio_features(list(chunk['Track ID']))
             result = [self.audio_feature_extractor(r) for r in result]
             features += result
@@ -218,7 +220,9 @@ class PlaylistMaker:
         chunk_size = min(chunk_size, 100)
         chunks = [track_list[x:x + chunk_size] for x in range(0, len(track_list), chunk_size)]
         for chunk in chunks:
-            self.spotify.user_playlist_add_tracks(self.username, playlist, chunk)
+            chunk = [c for c in chunk if isinstance(c,str)]
+            if chunk:
+                self.spotify.user_playlist_add_tracks(self.username, playlist, chunk)
 
     def add_audio_features(self, track_list):
         """
