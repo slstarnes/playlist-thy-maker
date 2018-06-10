@@ -329,9 +329,7 @@ class PlaylistMaker:
             kwargs['seed_artists'] = seed_artist_ids
         tracks = self.spotify.recommendations(*args,**kwargs)
 
-        print(tracks['tracks'][0]['album']['images'][0]['url'])
-
-        ## TODO: cleanup
+        ## TODO: cleanup (move to right place)
         album_urls = []
         for trk in tracks['tracks']:
             # j = self.spotify.artist(trk['artists'][0]['id'])
