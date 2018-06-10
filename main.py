@@ -316,10 +316,21 @@ class PlaylistMaker:
                 ids.append(id_)
         self.create_playlist_of_tracks(ids, playlist_name)
 
-    def get_recommendations(self, artists_list):
-        pass
-        #https://developer.spotify.com/documentation/web-api/reference/browse/get-recommendations/
-        # self.artist_details(artists_list)
+    def get_recommendations(self, *args,**kwargs):
+        if 'seed_artists' in kwargs:
+            # TODO: check and see if this is an ID or a name
+            seed_artists = kwargs['seed_artists']
+            seed_artist_ids = []
+            for s_a in seed_artists:
+                result = self.spotify.search(s_a, limit=1, type='artist')
+                seed_artist_ids.append(result['artists']['items'][0]['id'])
+            kwargs['seed_artists'] = seed_artist_ids
+        tracks = self.spotify.recommendations(*args,**kwargs)
+        # print(tracks['tracks'][0])
+        tracks = [self.track_details(trk['id']) for trk in tracks['tracks']]
+        # tracks = [self.track_extractor_plus(t['Track ID']) for t in tracks]
+        return pd.DataFrame(tracks)
+
 
 if __name__ == "__main__":
     pm = PlaylistMaker()
